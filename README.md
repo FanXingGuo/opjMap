@@ -10,10 +10,7 @@ System Requirements
 
 Software Requirements
 ---------------------
-The opjMap is supported on the following operating systems
-
-Linux 
-
+The opjMap is supported on the Linux operating systems
 
 Memory Requirements/Recommendations
 -------------------------------------
