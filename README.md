@@ -40,7 +40,7 @@ Running example
 -----------
 normal mapping  
 `./opjMap -a genome.fna  query.fa -k 15  -t 32  -o opjmap.sam`  
-mapping duplications
+mapping duplications  
 `./opjMap -a genome.fna  query.fa -k 15  -t 32 -P -o opjmap.sam`
 
 The final mapping result is opjmap.sam in SAM format.
