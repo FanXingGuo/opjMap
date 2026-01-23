@@ -155,6 +155,9 @@ void mm_err_fread(void *p, size_t size, size_t nitems, FILE *fp)
 #define sort_key_128x(a) ((a).x)
 KRADIX_SORT_INIT(128x, mm128_t, sort_key_128x, 8)
 
+#define sort_key_128y(a) ((a).y)
+KRADIX_SORT_INIT(128y, mm128_t, sort_key_128y, 8)
+
 #define sort_key_64(x) (x)
 KRADIX_SORT_INIT(64, uint64_t, sort_key_64, 8)
 

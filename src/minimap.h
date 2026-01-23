@@ -75,7 +75,7 @@ typedef struct { uint64_t x, y; } mm128_t;
 typedef struct { size_t n, m; mm128_t *a; } mm128_v;
 	// 追加
 	typedef struct { uint64_t x, y;uint32_t wind; } mm128_mt;
-	typedef struct {uint32_t idx,freq,st,ed,minus;uint16_t isOpen;uint16_t ref_id;}idxPos;
+	typedef struct {uint64_t st,ed;uint32_t idx,freq,ref_id,minus;uint16_t isOpen;}idxPos;
 
 // minimap2 index
 typedef struct {
