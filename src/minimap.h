@@ -75,8 +75,15 @@ typedef struct { uint64_t x, y; } mm128_t;
 typedef struct { size_t n, m; mm128_t *a; } mm128_v;
 	// 追加
 	typedef struct { uint64_t x, y;uint32_t wind; } mm128_mt;
-	typedef struct {uint64_t st,ed;uint32_t idx,freq,ref_id,minus;uint16_t isOpen;}idxPos;
-
+	// typedef struct {uint64_t st,ed;uint32_t idx,freq,ref_id,minus;uint16_t isOpen;}idxPos;
+	typedef struct {
+		int32_t idx;
+		int32_t freq;
+		int64_t st, ed;
+		int32_t ref_id;
+		int32_t isOpen;
+		int32_t minus;
+	} idxPos;
 // minimap2 index
 typedef struct {
 	char *name;      // name of the db sequence
