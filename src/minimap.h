@@ -1,6 +1,7 @@
 #ifndef MINIMAP2_H
 #define MINIMAP2_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -81,8 +82,9 @@ typedef struct { size_t n, m; mm128_t *a; } mm128_v;
 		int32_t freq;
 		int64_t st, ed;
 		int32_t ref_id;
-		int32_t isOpen;
-		int32_t minus;
+		uint64_t ref_idx;
+		// bool merged;
+		float score;
 	} idxPos;
 // minimap2 index
 typedef struct {
@@ -189,8 +191,9 @@ typedef struct {
 	int64_t mini_batch_size; // size of a batch of query bases to process in parallel
 	int64_t max_sw_mat;
 	int64_t cap_kalloc;
-
+	float win_weight;    // 窗口权重参数，添加这一行
 	const char *split_prefix;
+
 } mm_mapopt_t;
 
 // index reader

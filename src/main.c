@@ -88,6 +88,7 @@ static ko_longopt_t long_options[] = {
 	{ "mask-level",     ko_required_argument, 'M' },
 	{ "min-dp-score",   ko_required_argument, 's' },
 	{ "sam",            ko_no_argument,       'a' },
+	{ "win-weight",     ko_required_argument, 600 },
 	{ 0, 0, 0 }
 };
 
@@ -249,6 +250,15 @@ int main(int argc, char *argv[])
 		else if (c == 355) opt.flag |= MM_F_OUT_DS; // --ds
 		else if (c == 356) opt.rmq_inner_dist = mm_parse_num(o.arg); // --rmq-inner
 		else if (c == 501) mm_dbg_flag |= MM_DBG_SEED_FREQ; // --dbg-seed-occ
+		else if (c == 600) {
+			// atof 将字符串转换为浮点数
+			opt.win_weight = atof(o.arg);
+			// 可选：添加一些边界检查
+			if (opt.win_weight < 0 || opt.win_weight > 1) {
+				fprintf(stderr, "[ERROR] --win-weight must be [0,1)\n");
+				return 1;
+			}
+		}
 		else if (c == 330) {
 			fprintf(stderr, "[WARNING] \033[1;31m --lj-min-ratio has been deprecated.\033[0m\n");
 		} else if (c == 314) { // --frag
@@ -425,6 +435,12 @@ int main(int argc, char *argv[])
 				mm_idx_reader_close(idx_rdr);
 				return 1;
 			}
+		}
+		if (mm_verbose >= 3) {
+			fprintf(stderr, "[M::%s] window_weight: %.2f;  threads: %d\n",
+					__func__,          // 自动获取当前函数名 "mm_map_file"
+					opt.win_weight,   // 你自定义的参数
+					n_threads);        // 线程数
 		}
 		if (mm_verbose >= 3)
 			fprintf(stderr, "[M::%s::%.3f*%.2f] loaded/built the index for %d target sequence(s)\n",
