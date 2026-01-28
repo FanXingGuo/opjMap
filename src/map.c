@@ -408,8 +408,6 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		}
 		printf("\n");
 	}
-
-
 	//printf("a,%d; ",n_a);
 	bool op9m=false;
 	if(n_a>0&1) {
