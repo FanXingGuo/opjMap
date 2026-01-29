@@ -30,27 +30,37 @@ static int cmp_idxPos(const void *a, const void *b) {
 
 // 降序比较函数（关键点：b - a 实现从大到小排序）
 int compare_descending(const void *a, const void *b) {
-	return ((idxPos*)b)->freq - ((idxPos*)a)->freq;  // 注意这里是 a - b
+	return ((idxPos*)b)->freq - ((idxPos*)a)->freq;
 }
 int compareIdxDe(const void *a, const void *b) {
 	idxPos *pa=*(idxPos**)a;
 	idxPos *pb=*(idxPos**)b;
-	return pb->freq - pa->freq;  // 注意这里是 a - b
+	return pb->freq - pa->freq;
 }
-int compareIdx2Ac(const void *a, const void *b) {
-	idxPos *pa=*(idxPos**)a;
-	idxPos *pb=*(idxPos**)b;
-	return pa->ref_id - pb->ref_id;
+int compareFreDe(const void *a, const void *b) {
+	idxPos *pa=(idxPos*)a;
+	idxPos *pb=(idxPos*)b;
+	return pb->freq - pa->freq;
 }
-int compareIdx3Ac(const void *a, const void *b) {
-	idxPos *pa=*(idxPos**)a;
-	idxPos *pb=*(idxPos**)b;
-	return pa->st - pb->st;  // 注意这里是 a - b
+int compareIdxAc(const void *a, const void *b) {
+	idxPos *pa=(idxPos*)a;
+	idxPos *pb=(idxPos*)b;
+	return pa->idx - pb->idx;
 }
+// int compareIdx2Ac(const void *a, const void *b) {
+// 	idxPos *pa=*(idxPos**)a;
+// 	idxPos *pb=*(idxPos**)b;
+// 	return pa->ref_id - pb->ref_id;
+// }
+// int compareIdx3Ac(const void *a, const void *b) {
+// 	idxPos *pa=*(idxPos**)a;
+// 	idxPos *pb=*(idxPos**)b;
+// 	return pa->st - pb->st;
+// }
 int compareIdx2De(const void *a, const void *b) {
 	idxPos *pa=*(idxPos**)a;
 	idxPos *pb=*(idxPos**)b;
-	return pa->ref_idx - pb->ref_idx;  // 注意这里是 a - b
+	return pa->ref_idx - pb->ref_idx;
 }
 
 
@@ -411,7 +421,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 	//printf("a,%d; ",n_a);
 	bool op9m=false;
 	if(n_a>0&1) {
-		uint32_t* aw = (uint32_t*)kcalloc(b->km,n_a, sizeof(uint32_t));  // calloc会自动初始化为0
+
 
 		if (0) {
 			for (i = 0; i < n_a; ++i) {
@@ -430,174 +440,218 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		}
 		int windLen=(sum_len+qlens[0])/1.41421356/1000; //default bucket len 1000,~700bp,max ref length 1400billion bp
 
-		int * wl2ws =(int *)kcalloc(b->km,windLen, sizeof(int));
-		memset(wl2ws, -1, windLen * sizeof(int));
-
 		bool* windBoolOpen = (bool*)kmalloc(b->km,windLen * sizeof(bool));
 		memset(windBoolOpen, 0, windLen * sizeof(bool));
 
-		idxPos * naIdx=(idxPos*)kcalloc(b->km,n_a, sizeof(idxPos));
-		memset(naIdx, 0, n_a * sizeof(idxPos));
-		idxPos** ptrIdx=(idxPos**)kcalloc(b->km,n_a, sizeof(idxPos*));
+		// uint32_t* aw = (uint32_t*)kcalloc(b->km,n_a, sizeof(uint32_t));  // calloc会自动初始化为0
+		// 1. 先申请存放两个指针的内存 (uint32_t**)
+		uint32_t **aw = (uint32_t**)kmalloc(b->km, 2 * sizeof(uint32_t*));
+
+		// 2. 申请实际的数据内存，大小为 2 * n_a，使用 kcalloc 自动初始化为0
+		// 注意：这里将通过 aw[0] 持有整块内存的指针
+		aw[0] = (uint32_t*)kcalloc(b->km, 2 * n_a, sizeof(uint32_t));
+		// 3. 将第二行的指针指向内存的中间位置
+		aw[1] = aw[0] + n_a;
+		// 访问方式: aw[0][index] 或 aw[1][index]
+
+
+		// int * wl2ws =(int *)kcalloc(b->km,windLen, sizeof(int));
+		// memset(wl2ws, -1, windLen * sizeof(int));
+		// 1. 申请指针数组
+		int **wl2ws = (int**)kmalloc(b->km, 2 * sizeof(int*));
+		// 2. 申请实际数据内存 (2 * windLen)
+		// 这里用 kmalloc 即可，因为下面马上会 memset 覆盖
+		wl2ws[0] = (int*)kmalloc(b->km, 2 * windLen * sizeof(int));
+		// 3. 设置第二行指针
+		wl2ws[1] = wl2ws[0] + windLen;
+		// 4. 初始化整块内存为 -1
+		// 注意：直接对 aw[0] 进行 memset，长度是 2 * windLen
+		memset(wl2ws[0], -1, 2 * windLen * sizeof(int));
+
+		// idxPos * naIdx=(idxPos*)kcalloc(b->km,n_a, sizeof(idxPos));
+		// memset(naIdx, 0, n_a * sizeof(idxPos));
+		// 1. 申请指针数组
+		idxPos **naIdx = (idxPos**)kmalloc(b->km, 2 * sizeof(idxPos*));
+		// 2. 申请实际数据内存 (2 * n_a)
+		naIdx[0] = (idxPos*)kcalloc(b->km, 2 * n_a, sizeof(idxPos));
+		// 3. 设置第二行指针
+		naIdx[1] = naIdx[0] + n_a;
+		// kcalloc 已经自动 memset 为 0 了，如果 idxPos 结构体比较复杂，确保 0 初始化是你要的效果
+		memset(naIdx[0], 0, 2 * n_a * sizeof(idxPos)); // 这一句对于 kcalloc 是多余的，但保留也没错
+
+
+
 		int ptrIdxCur=0;
 
 		int ptrIdxCur2=0;
-
-		int naIdxPtr=0;
+		int  naIdxPtr[]={0,0};
 		idxPos * tmpIdx;
-
+		int allocIdx2[]={0,0};
 		uint64_t tempX=0;
 		int gt2w=0; //window greater than 2,  num
-		float ff=0;
+		int ic=0;// idx choose
+		idxPos *  idx2[]={&naIdx[0][0],&naIdx[1][0]};
 		for (i = 0; i < n_a; ++i) {
 			tempX=ref_cur[a[i].x<<1>>33]+(int32_t)a[i].x;
-			ff=round(0.5*(tempX-(int32_t)a[i].y+qlens[0])/1000);
-			aw[i]=(uint32_t)ff;//  max read length 1000w
-
-			if(wl2ws[aw[i]]==-1) {
-				wl2ws[aw[i]]=naIdxPtr++;
-				tmpIdx=&(naIdx[wl2ws[aw[i]]]);
-				tmpIdx->freq=1;
-				tmpIdx->idx=aw[i];
-				tmpIdx->st=(int32_t)a[i].x;
-				tmpIdx->ed=(int32_t)a[i].x;
-				tmpIdx->ref_id=a[i].x<<1>>33;
-			}
-			else {
-				tmpIdx=&(naIdx[wl2ws[aw[i]]]);
-				tmpIdx->freq++;
-				tmpIdx->st=min(tmpIdx->st,(int32_t)a[i].x);
-				tmpIdx->ed=max(tmpIdx->ed,(int32_t)a[i].x);
-			}
-			if(naIdx[wl2ws[aw[i]]].freq==3) {
-				gt2w+=1;
-				ptrIdx[ptrIdxCur++]=&(naIdx[wl2ws[aw[i]]]);
-			}
-		}
-		idxPos** ptrIdx2=(idxPos**)kcalloc(b->km,ptrIdxCur, sizeof(idxPos*));// for select windows
-		qsort(ptrIdx, ptrIdxCur, sizeof(idxPos*), compareIdxDe);
-		mm128_v mv1 = {0, 0, 0}; // 存储 minimizer
-		mm128_v mvQue={0,0,0};
-		bool justGo=false;
-		bool showif=false;
-		if(ptrIdxCur==1) {
-			justGo=true;
-		}
-		else {
-			float top1Den=1;
-			int topFreq=1;
-			if(ptrIdxCur>0) {
-				top1Den=(float)ptrIdx[0]->freq/(float)(ptrIdx[0]->ed-ptrIdx[0]->st);
-				topFreq=ptrIdx[0]->freq;
-			}
-			float dftop1den=1;
-			float dflen=1;
-			float dffreq=1;
-			float dfd=1;
-			float goSele=0.95;
-			int countGo=0;
-
-			if(showif)printf("w%s:",qname);
-			for (i = 0; i < ptrIdxCur; i++) {
-				dftop1den=((float)ptrIdx[i]->freq/(float)(ptrIdx[i]->ed-ptrIdx[i]->st))/top1Den-1;
-				dfd=max(0,1-dftop1den*dftop1den);
-				dflen=(float)abs(qlens[0]-(min(3*(ptrIdx[i]->ed-ptrIdx[i]->st),qlens[0])))/qlens[0];
-				if(showif)printf("(%d,%f),",ptrIdx[i]->freq, dfd-dflen);
-				ptrIdx[i]->score=dfd-dflen;
-				if(ptrIdx[i]->score>opt->win_weight) {
-					countGo+=1;
-					ptrIdx[i]->ref_idx=ref_cur[ptrIdx[i]->ref_id]+ptrIdx[i]->st;
-					ptrIdx2[ptrIdxCur2++]=ptrIdx[i];
+			aw[0][i]=(uint32_t)(0.5*(tempX-(int32_t)a[i].y+qlens[0])/1000);
+			aw[1][i]=(uint32_t)(0.5*(tempX-(int32_t)a[i].y+qlens[0]+500)/1000); // 500, half of 100, 1/2 window
+			// if((int32_t)a[i].x==17518792) {
+			// 	printf("--");
+			// }
+			for (j =0; j < 2; ++j) {
+				if(wl2ws[j][aw[j][i]]==-1) {
+					wl2ws[j][aw[j][i]]=naIdxPtr[j]++;
+					tmpIdx=&(naIdx[j][wl2ws[j][aw[j][i]]]);
+					tmpIdx->freq=1;
+					tmpIdx->idx=aw[j][i];
+					tmpIdx->st=(int32_t)a[i].x;
+					tmpIdx->ed=(int32_t)a[i].x;
+					tmpIdx->ref_id=a[i].x<<1>>33;
+				}
+				else {
+					tmpIdx=&(naIdx[j][wl2ws[j][aw[j][i]]]);
+					tmpIdx->freq++;
+					tmpIdx->st=min(tmpIdx->st,(int32_t)a[i].x);
+					tmpIdx->ed=max(tmpIdx->ed,(int32_t)a[i].x);
+				}
+				if(tmpIdx->freq>idx2[j]->freq){
+					idx2[j]=tmpIdx;
+				}
+				if(tmpIdx->freq==3) {
+					allocIdx2[j]++;
 				}
 			}
-			// printf("\npt2%d;\n",ptrIdxCur2);
-			if(countGo==1) {
-				justGo=true;
-			}
-
-			if(showif)justGo=true;
-			// justGo=true;
-
 		}
-		if(justGo) {
-			if(showif)printf("\na:");
-			// top 10 window anchors
-			int wsele=min(ptrIdxCur,ptrIdxCur);
+		ic=idx2[0]->freq>idx2[1]->freq?0:1;
+		tmpIdx=idx2[ic];
+		float top1Den=1;
+		int topFreq=tmpIdx->freq;
+		float dftop1den=1;
+		float dflen=1;
+		float dffreq=1;
+		float dfd=1;
+		int countGo=0;
+		bool showif=false;
+		bool justGo=false;
+		idxPos * oneMaxIdx=NULL;
+		top1Den=(float)tmpIdx->freq/(float)(tmpIdx->ed-tmpIdx->st);
+		idxPos** ptrIdx=(idxPos**)kcalloc(b->km,allocIdx2[ic], sizeof(idxPos*));
+		idxPos** ptrIdx2=(idxPos**)kcalloc(b->km,allocIdx2[ic], sizeof(idxPos*));// for select windows
+		if(showif)qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareFreDe);
+		if(showif)printf("w%s:",qname);
+		oneMaxIdx=&naIdx[ic][0];
+		for (i = 0; i < naIdxPtr[ic]; ++i) {
+			tmpIdx=&(naIdx[ic][i]);
+			if (tmpIdx->freq<=3) continue;
+			dftop1den=((float)tmpIdx->freq/(float)(tmpIdx->ed-tmpIdx->st))/top1Den-1;
+			dfd=max(0,1-dftop1den*dftop1den);
+			dflen=(float)abs(qlens[0]-(min(3*(tmpIdx->ed-tmpIdx->st),qlens[0])))/qlens[0];
+			if(showif)printf("(%d,%f),",tmpIdx->freq, dfd-dflen);
+			tmpIdx->score=dfd-dflen;
+			if(tmpIdx->score>0.1 && tmpIdx->freq>3) {
+				ptrIdxCur++;
+				ptrIdx2[ptrIdxCur2++]=tmpIdx;
+			}
+			if(tmpIdx->score>opt->win_weight) {
+				tmpIdx->ref_idx=ref_cur[tmpIdx->ref_id]+tmpIdx->st;
+				ptrIdx[countGo++]=tmpIdx;
+			}
+			if(tmpIdx->score>oneMaxIdx->score) {
+				oneMaxIdx=tmpIdx;
+			}
+		}
+		if(showif) {
+			printf("\na:");
+			for (i = 0; i < n_a; ++i) {
+				printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+
+			}
+			printf("\n");
+			printf("a2:");
+			//qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareIdxAc);
+			// for(i = 0; i < countGo; ++i) {
+			// 	windBoolOpen[ptrIdx[i]->idx]=true;
+			// }
+			// for (i = 0; i < n_a; ++i) {
+			// 	if(windBoolOpen[aw[ic][i]]) {
+			// 		printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+			// 	}
+			// }
+			// printf("\n");
+		}
+
+		// idxPos** ptrIdx2=(idxPos**)kcalloc(b->km,ptrIdxCur, sizeof(idxPos*));// for select windows
+
+		mm128_v mv1 = {0, 0, 0}; // 存储 minimizer
+		mm128_v mvQue={0,0,0};
+
+
+		//if(countGo>1)printf("@o9m-%s\n",qname);
+		if(countGo==1 ||opt->win_weight>=1.0) { // window level, rm noisy
+			justGo=true;
 			int nn_a=0,nnac=0;
-			for(i=0;i<wsele;i++) {
-				windBoolOpen[ptrIdx[i]->idx]=true;
-				nn_a+=ptrIdx[i]->freq;
+			for (i = 0; i < ptrIdxCur2; ++i) {
+				windBoolOpen[ptrIdx2[i]->idx]=true;
+				nn_a+=ptrIdx2[i]->freq;
 			}
 			mm128_t *aa = (mm128_t*)kmalloc(b->km, (nn_a+5)* sizeof(mm128_t));//debug 多申请些空间，防止溢出写入
 			for (i = 0; i < n_a; ++i) {
-				if(windBoolOpen[aw[i]]) {
+				if(windBoolOpen[aw[ic][i]]) {
 					aa[nnac++]=a[i];
 					if(showif)printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
 				}
 			}
 			if(showif)printf("\n");
-			if(showif)printf("a2:");
-			if(showif) {
-				for (i = 0; i < n_a; ++i) {
-					// if(naIdx[wl2ws[aw[i]]]!=NULL) {
-						if(naIdx[wl2ws[aw[i]]].score>opt->win_weight) {
-							// aa[nnac++]=a[i];
-							if(showif)printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
-						}
-					// }
-				}
-			}
-			if(showif)printf("\n");
-
 			mm128_t *tmp=a;
 			a=aa;
 			n_a=nn_a;
-
 			kfree(b->km,tmp);
 		}else {
-			// 9 mer
 			//9mer
-				//ref
-				//printf("@o9m-%s\n",qname);
-				op9m=true;
-				qsort(ptrIdx2, ptrIdxCur2, sizeof(idxPos*), compareIdx2De);
-				int64_t ist=0,ied=0;
-				if (ptrIdxCur2 > 0) {
-					// 1. 初始化当前合并区间的状态，从第0个元素开始
-					int64_t cur_st = ptrIdx2[0]->st;
-					int64_t cur_ed = ptrIdx2[0]->ed;
-					int32_t cur_ref = ptrIdx2[0]->ref_id;
+			//ref
+			// printf("@o9m-%s\n",qname);
+			op9m=true;
 
-					// 2. 从第1个元素开始遍历
-					for (int i = 1; i < ptrIdxCur2; i++) {
-						// 使用指针访问当前元素，写法为 ptrIdx2[i]
-						idxPos *next_node = ptrIdx2[i];
-						// 判断是否可以合并：
-						// 条件1: ref_id 必须相同
-						// 条件2: 下一个的起始位置(st) 必须落在当前累计的区间内(<= cur_ed)
-						if (next_node->ref_id == cur_ref && next_node->st <= cur_ed) {
-							// --- 执行合并 ---
-							// 如果下一个元素的结束位置比当前记录的更远，则扩展区间
-							if (next_node->ed > cur_ed) {
-								cur_ed = next_node->ed;
-							}
-							// 注意：st 不需要变，因为已经排序过，之前的st肯定是最小的
-						} else {
-							// --- 无法合并，输出之前的区间 ---
-							// 调用函数写入之前累计的结果
-							mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, 9, &mv1, b->km, mv1.n);
-							// --- 重置状态为当前元素，开始新的区间 ---
-							cur_st = next_node->st;
+			if(showif)printf("w%s:",qname);
+			if(showif)justGo=true;
+			qsort(ptrIdx, countGo, sizeof(idxPos*), compareIdx2De);
+			int64_t ist=0,ied=0;
+			if (countGo > 0) {
+				// 1. 初始化当前合并区间的状态，从第0个元素开始
+				int64_t cur_st = ptrIdx[0]->st;
+				int64_t cur_ed = ptrIdx[0]->ed;
+				int32_t cur_ref = ptrIdx[0]->ref_id;
+
+				// 2. 从第1个元素开始遍历
+				for (int i = 1; i < countGo; i++) {
+					// 使用指针访问当前元素，写法为 ptrIdx2[i]
+					idxPos *next_node = ptrIdx[i];
+					// 判断是否可以合并：
+					// 条件1: ref_id 必须相同
+					// 条件2: 下一个的起始位置(st) 必须落在当前累计的区间内(<= cur_ed)
+					if (next_node->ref_id == cur_ref && next_node->st <= cur_ed) {
+						// --- 执行合并 ---
+						// 如果下一个元素的结束位置比当前记录的更远，则扩展区间
+						if (next_node->ed > cur_ed) {
 							cur_ed = next_node->ed;
-							cur_ref = next_node->ref_id;
 						}
+						// 注意：st 不需要变，因为已经排序过，之前的st肯定是最小的
+					} else {
+						// --- 无法合并，输出之前的区间 ---
+						// 调用函数写入之前累计的结果
+						mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, 9, &mv1, b->km, mv1.n);
+						// --- 重置状态为当前元素，开始新的区间 ---
+						cur_st = next_node->st;
+						cur_ed = next_node->ed;
+						cur_ref = next_node->ref_id;
 					}
-
-					// 3. 循环结束后，处理并输出最后一个缓存的区间
-					mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, 9, &mv1, b->km, mv1.n);
 				}
 
-				radix_sort_128x(mv1.a, mv1.a + mv1.n);
+				// 3. 循环结束后，处理并输出最后一个缓存的区间
+				mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, 9, &mv1, b->km, mv1.n);
+			}
+
+			radix_sort_128x(mv1.a, mv1.a + mv1.n);
 			// 提取que的minimizer
 			mm_sketch(b->km, seqs[0], qlens[0], 1, globK, 0, 0, &mvQue); // is_hpc=0
 			// printf("seq=%s\n",seqs[0]);
@@ -723,18 +777,31 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			kfree(b->km, mv1.a);
 			kfree(b->km, mvQue.a);
 
-				//justGo=true;
+			//justGo=true;
 
 		}
 
 
 
+		// kfree(b->km, wl2ws);
+		// kfree(b->km,naIdx);
+		// kfree(b->km,aw);
+		// 释放 aw
+		kfree(b->km, aw[0]); // 先释放数据块
+		kfree(b->km, aw);    // 再释放指针数组
+
+		// 释放 wl2ws
+		kfree(b->km, wl2ws[0]);
 		kfree(b->km, wl2ws);
-		kfree(b->km,naIdx);
+
+		// 释放 naIdx
+		kfree(b->km, naIdx[0]);
+		kfree(b->km, naIdx);
+
+
 		kfree(b->km,ptrIdx);
 		kfree(b->km,ptrIdx2);
 		kfree(b->km,windBoolOpen);
-		kfree(b->km,aw);
 		kfree(b->km,ref_cur);
 	}
 
@@ -1060,13 +1127,13 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		max_chain_gap_ref = opt->max_frag_len - qlen_sum;
 		if (max_chain_gap_ref < opt->max_gap) max_chain_gap_ref = opt->max_gap;
 	} else max_chain_gap_ref = opt->max_gap;
-	if(op9m||1) {
+	// if(op9m||1) {
 		chn_pen_gap  = opt->chain_gap_scale * 1.1 * mi->k; //mini 0.01
 		chn_pen_skip = opt->chain_skip_scale * 1.1 * mi->k; //mini 0.01
-	}else {
-		chn_pen_gap  = opt->chain_gap_scale * 0.01 * mi->k; //mini 0.01
-		chn_pen_skip = opt->chain_skip_scale * 0.01 * mi->k; //mini 0.01
-	}
+	// }else {
+	// 	chn_pen_gap  = opt->chain_gap_scale * 0.01 * mi->k; //mini 0.01
+	// 	chn_pen_skip = opt->chain_skip_scale * 0.01 * mi->k; //mini 0.01
+	// }
 
 	if (opt->flag & MM_F_RMQ) {
 		a = mg_lchain_rmq(opt->max_gap, opt->rmq_inner_dist, opt->bw, opt->max_chain_skip, opt->rmq_size_cap, opt->min_cnt, opt->min_chain_score,

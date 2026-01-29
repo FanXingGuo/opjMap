@@ -437,7 +437,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		if (mm_verbose >= 3) {
-			fprintf(stderr, "[M::%s] window_weight: %.2f;  threads: %d\n",
+			fprintf(stderr, "[M::%s] window_weight: %.2f;  thread(s): %d\n",
 					__func__,          // 自动获取当前函数名 "mm_map_file"
 					opt.win_weight,   // 你自定义的参数
 					n_threads);        // 线程数
