@@ -560,14 +560,6 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 				oneMaxIdx=tmpIdx;
 			}
 		}
-		if(ptrIdxCur==0) {  // win<=0.1,choose top 5
-			qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareFreDe);
-			for (i = 0; i < min(5,naIdxPtr[ic]); ++i) {
-				tmpIdx=&(naIdx[ic][i]);
-				ptrIdx2[ptrIdxCur2++]=tmpIdx;
-			}
-			countGo=1;
-		}
 		if(showif) {
 			printf("\na:");
 			for (i = 0; i < n_a; ++i) {
@@ -576,16 +568,16 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			}
 			printf("\n");
 			printf("a2:");
-			qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareIdxAc);
-			 for(i = 0; i < countGo; ++i) {
-			 	windBoolOpen[ptrIdx[i]->idx]=true;
-			 }
-			 for (i = 0; i < n_a; ++i) {
-			 	if(windBoolOpen[aw[ic][i]]) {
-			 		printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
-			 	}
-			 }
-			 printf("\n");
+			//qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareIdxAc);
+			// for(i = 0; i < countGo; ++i) {
+			// 	windBoolOpen[ptrIdx[i]->idx]=true;
+			// }
+			// for (i = 0; i < n_a; ++i) {
+			// 	if(windBoolOpen[aw[ic][i]]) {
+			// 		printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+			// 	}
+			// }
+			// printf("\n");
 		}
 
 		// idxPos** ptrIdx2=(idxPos**)kcalloc(b->km,ptrIdxCur, sizeof(idxPos*));// for select windows
@@ -610,10 +602,10 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			for (i = 0; i < n_a; ++i) {
 				if(windBoolOpen[aw[ic][i]]) {
 					aa[nnac++]=a[i];
-					// if(showif)printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+					if(showif)printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
 				}
 			}
-			// if(showif)printf("\n");
+			if(showif)printf("\n");
 			mm128_t *tmp=a;
 			a=aa;
 			n_a=nn_a;
@@ -625,7 +617,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			// printf("@o9m-%s\n",qname);
 			op9m=true;
 
-			// if(showif)printf("w%s:",qname);
+			if(showif)printf("w%s:",qname);
 			if(showif)justGo=true;
 			qsort(ptrIdx, countGo, sizeof(idxPos*), compareIdx2De);
 			int64_t ist=0,ied=0;
