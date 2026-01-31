@@ -420,6 +420,10 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 	}
 	//printf("a,%d; ",n_a);
 	bool op9m=false;
+	bool showif=true;
+	bool show9m=false;
+	bool showskl=false;
+	int w9m=9;
 	if(n_a>0&1) {
 
 
@@ -531,7 +535,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		float dffreq=1;
 		float dfd=1;
 		int countGo=0;
-		bool showif=false;
+
 		bool justGo=false;
 		idxPos * oneMaxIdx=NULL;
 		top1Den=(float)tmpIdx->freq/(float)(tmpIdx->ed-tmpIdx->st);
@@ -562,12 +566,24 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		}
 		if(ptrIdxCur==0) {  // win<=0.1,choose top 5
 			qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareFreDe);
-			for (i = 0; i < min(5,naIdxPtr[ic]); ++i) {
+			for (i = 0; i < allocIdx2[ic]; ++i) {
 				tmpIdx=&(naIdx[ic][i]);
 				ptrIdx2[ptrIdxCur2++]=tmpIdx;
 			}
-			countGo=1;
+			countGo=1; // no 9mer
 		}
+		// 0.1<windows<0.9
+		if(ptrIdxCur>0 && countGo==0) {
+			qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareFreDe);
+			for (i = 0; i < min(5,allocIdx2[ic]); ++i) { //deep search by 9mer
+				tmpIdx=&(naIdx[ic][i]);
+				tmpIdx->ref_idx=ref_cur[tmpIdx->ref_id]+tmpIdx->st;
+				ptrIdx[countGo++]=tmpIdx;
+			}
+			// w9m=3;
+
+		}
+
 		if(showif) {
 			printf("\na:");
 			for (i = 0; i < n_a; ++i) {
@@ -575,17 +591,22 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 
 			}
 			printf("\n");
-			printf("a2:");
-			qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareIdxAc);
-			 for(i = 0; i < countGo; ++i) {
-			 	windBoolOpen[ptrIdx[i]->idx]=true;
-			 }
-			 for (i = 0; i < n_a; ++i) {
-			 	if(windBoolOpen[aw[ic][i]]) {
-			 		printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
-			 	}
-			 }
-			 printf("\n");
+			if(!show9m && ! showskl) {
+				printf("a2:");
+				//qsort(naIdx[ic], naIdxPtr[ic], sizeof(idxPos), compareIdxAc);
+				if(ptrIdx!=NULL) {
+					for(i = 0; i < countGo; ++i) {
+						windBoolOpen[ptrIdx[i]->idx]=true;
+					}
+					for (i = 0; i < n_a; ++i) {
+						if(windBoolOpen[aw[ic][i]]) {
+							printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+						}
+					}
+				}
+
+				printf("\n");
+			}
 		}
 
 		// idxPos** ptrIdx2=(idxPos**)kcalloc(b->km,ptrIdxCur, sizeof(idxPos*));// for select windows
@@ -652,7 +673,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 					} else {
 						// --- 无法合并，输出之前的区间 ---
 						// 调用函数写入之前累计的结果
-						mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, 9, &mv1, b->km, mv1.n);
+						mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, w9m, &mv1, b->km, mv1.n);
 						// --- 重置状态为当前元素，开始新的区间 ---
 						cur_st = next_node->st;
 						cur_ed = next_node->ed;
@@ -661,7 +682,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 				}
 
 				// 3. 循环结束后，处理并输出最后一个缓存的区间
-				mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, 9, &mv1, b->km, mv1.n);
+				mm_collect_ref_minimizers(mi, cur_ref, cur_st, cur_ed, 9, w9m, &mv1, b->km, mv1.n);
 			}
 
 			radix_sort_128x(mv1.a, mv1.a + mv1.n);
@@ -701,7 +722,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 				}
 			}
 			int allN=n_a+sumA;
-			mm128_t *aaa = (mm128_t*)kmalloc(b->km, (sumA+5)* sizeof(mm128_t));
+			mm128_t *aaa = (mm128_t*)kmalloc(b->km, (sumA)* sizeof(mm128_t));
 			// mm128_t *aaa = (mm128_t*)kmalloc(b->km, (allN+5)* sizeof(mm128_t));
 
 			curRef=0,curRead=0,m=0;
@@ -789,6 +810,15 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			//radix_sort_128xy(a, a + n_a);
 			radix_sort_128x(a, a + n_a);
 
+			if(showif&&show9m) {
+				printf("a2:");
+
+				 for (i = 0; i < n_a; ++i) {
+				 		printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+				 }
+				 printf("\n");
+			}
+
 
 			kfree(b->km,tmp);
 
@@ -838,20 +868,22 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		max_chain_gap_ref = opt->max_frag_len - qlen_sum;
 		if (max_chain_gap_ref < opt->max_gap) max_chain_gap_ref = opt->max_gap;
 	} else max_chain_gap_ref = opt->max_gap;
+	int mChainScOft=0;
 	if(op9m) {
-		chn_pen_gap  = opt->chain_gap_scale * 1.1 * mi->k; //mini 0.01
-		chn_pen_skip = opt->chain_skip_scale * 1.1 * mi->k; //mini 0.01
+		chn_pen_gap  = opt->chain_gap_scale * 0.02* 9; //mini 0.01
+		chn_pen_skip = opt->chain_skip_scale * 0.1 * 9; //mini 0.01
+		mChainScOft=3;
 	}else {
 		chn_pen_gap  = opt->chain_gap_scale * 0.01 * mi->k; //mini 0.01
 		chn_pen_skip = opt->chain_skip_scale * 0.01 * mi->k; //mini 0.01
 	}
 
 	if (opt->flag & MM_F_RMQ) {
-		a = mg_lchain_rmq(opt->max_gap, opt->rmq_inner_dist, opt->bw, opt->max_chain_skip, opt->rmq_size_cap, opt->min_cnt, opt->min_chain_score,
+		a = mg_lchain_rmq(opt->max_gap, opt->rmq_inner_dist, opt->bw, opt->max_chain_skip, opt->rmq_size_cap, opt->min_cnt, opt->min_chain_score-mChainScOft,
 						  chn_pen_gap, chn_pen_skip, n_a, a, &n_regs0, &u, b->km);
 	} else {
 		a = mg_lchain_dp(max_chain_gap_ref, max_chain_gap_qry, opt->bw, opt->max_chain_skip, opt->max_chain_iter, opt->min_cnt,
-			opt->min_chain_score,
+			opt->min_chain_score-mChainScOft,
 						 chn_pen_gap, chn_pen_skip, is_splice, n_segs, n_a, a, &n_regs0, &u, b->km);
 	}
 
@@ -863,7 +895,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			kfree(b->km, u);
 			radix_sort_128x(a, a + n_a);
 			a = mg_lchain_rmq(opt->max_gap, opt->rmq_inner_dist, opt->bw_long, opt->max_chain_skip, opt->rmq_size_cap, opt->min_cnt,
-				opt->min_chain_score,
+				opt->min_chain_score-mChainScOft,
 							  chn_pen_gap, chn_pen_skip, n_a, a, &n_regs0, &u, b->km);
 		}
 	} else if (opt->max_occ > opt->mid_occ && rep_len > 0 && !(opt->flag & MM_F_RMQ)) { // re-chain, mostly for short reads
@@ -886,7 +918,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 			kfree(b->km, mini_pos);
 			if (opt->flag & MM_F_HEAP_SORT) a = collect_seed_hits_heap(b->km, opt, opt->max_occ, mi, qname, &mv, qlen_sum, &n_a, &rep_len, &n_mini_pos, &mini_pos);
 			else a = collect_seed_hits(b->km, opt, opt->max_occ, mi, qname, &mv, qlen_sum, &n_a, &rep_len, &n_mini_pos, &mini_pos);
-			a = mg_lchain_dp(max_chain_gap_ref, max_chain_gap_qry, opt->bw, opt->max_chain_skip, opt->max_chain_iter, opt->min_cnt, opt->min_chain_score,
+			a = mg_lchain_dp(max_chain_gap_ref, max_chain_gap_qry, opt->bw, opt->max_chain_skip, opt->max_chain_iter, opt->min_cnt, opt->min_chain_score-mChainScOft,
 							 chn_pen_gap, chn_pen_skip, is_splice, n_segs, n_a, a, &n_regs0, &u, b->km);
 		}
 	}
@@ -905,7 +937,31 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 				fprintf(stderr, "CN\t%d\t%s\t%d\t%c\t%d\t%d\t%d\n", j, mi->seq[a[i].x<<1>>33].name, (int32_t)a[i].x, "+-"[a[i].x>>63], (int32_t)a[i].y, (int32_t)(a[i].y>>32&0xff),
 						i == regs0[j].as? 0 : ((int32_t)a[i].y - (int32_t)a[i-1].y) - ((int32_t)a[i].x - (int32_t)a[i-1].x));
 
+	if(showif && showskl) {
+		printf("a2:");
+		for (int j = 0; j < n_regs0; ++j) {
+		// for (int j = 0; j < n_regs0; ++j) {
+			fprintf(stderr, "%s === Chain %d: %d seeds (qst=%d, qed=%d, score=%d) ===\n",
+					qname,j, regs0[j].cnt, regs0[j].qs, regs0[j].qe,regs0[j].score);
+
+			// 遍历该区域的每个种子
+			// for (int i = regs0[j].as; i < regs0[j].as + regs0[j].cnt; ++i) {
+			// 	int32_t ref_id = a[i].x >> 32;          // 参考序列ID
+			// 	int32_t ref_pos = (int32_t)a[i].x;      // 参考序列位置
+			// 	int32_t qry_pos = (int32_t)a[i].y;      // 查询序列位置
+			// 	char strand = (a[i].y >> 63) ? '-' : '+'; // 链方向
+			//
+			// 	fprintf(stderr, "Seed %d: ref_id=%d, ref_pos=%d, qry_pos=%d, strand=%c\n",
+			// 			i - regs0[j].as, ref_id, ref_pos, qry_pos, strand);
+			// }
+			for (int i = regs0[j].as; i < regs0[j].as + regs0[j].cnt; ++i) {
+				printf( "(%d,%d,%c,%d),",  (int32_t)a[i].x, (int32_t)a[i].y,"10"[a[i].x>>63], (int32_t)(a[i].y>>32&0xff));
+			}
+		}
+		printf("\n");
+	}
 	chain_post(opt, max_chain_gap_ref, mi, b->km, qlen_sum, n_segs, qlens, &n_regs0, regs0, a);
+
 	if (!is_sr && !(opt->flag&MM_F_QSTRAND)) {
 		mm_est_err(mi, qlen_sum, n_regs0, regs0, a, n_mini_pos, mini_pos);
 		n_regs0 = mm_filter_strand_retained(n_regs0, regs0);
@@ -914,7 +970,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 	if (n_segs == 1) { // uni-segment
 		regs0 = align_regs(opt, mi, b->km, qlens[0], seqs[0], &n_regs0, regs0, a);
 		regs0 = (mm_reg1_t*)realloc(regs0, sizeof(*regs0) * n_regs0);
-		mm_set_mapq(b->km, n_regs0, regs0, opt->min_chain_score, opt->a, rep_len, is_sr);
+		mm_set_mapq(b->km, n_regs0, regs0, opt->min_chain_score-mChainScOft, opt->a, rep_len, is_sr);
 		n_regs[0] = n_regs0, regs[0] = regs0;
 	} else { // multi-segment
 		mm_seg_t *seg;
@@ -923,7 +979,7 @@ void mm_map_frag(const mm_idx_t *mi, int n_segs, const int *qlens, const char **
 		for (i = 0; i < n_segs; ++i) {
 			mm_set_parent(b->km, opt->mask_level, opt->mask_len, n_regs[i], regs[i], opt->a * 2 + opt->b, opt->flag&MM_F_HARD_MLEVEL, opt->alt_drop); // update mm_reg1_t::parent
 			regs[i] = align_regs(opt, mi, b->km, qlens[i], seqs[i], &n_regs[i], regs[i], seg[i].a);
-			mm_set_mapq(b->km, n_regs[i], regs[i], opt->min_chain_score, opt->a, rep_len, is_sr);
+			mm_set_mapq(b->km, n_regs[i], regs[i], opt->min_chain_score-mChainScOft, opt->a, rep_len, is_sr);
 		}
 		mm_seg_free(b->km, n_segs, seg);
 		if (n_segs == 2 && opt->pe_ori >= 0 && (opt->flag&MM_F_CIGAR))
